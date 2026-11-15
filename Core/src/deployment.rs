@@ -32,4 +32,4 @@ pub fn install(yes:bool)->Result<(),String>{
  if h["gpu_vendors"].as_array().map_or(false,|a|a.iter().any(|v|v.as_str()==Some("0x10de")))&&!has("nvidia-smi"){eprintln!("[WARN] NVIDIA utilities absent; use matching distribution driver package; not auto-replaced");}
  Ok(())
 }
-pub fn doctor()->Value{let data=crate::modules::Collector::snapshot();json!({"dependencies":check(),"rapl_inaccessible":data["power"]["rapl_inaccessible"],"smart":data["storage"]["smart"],"fan_count":data["fan"]["sensors"].as_array().map(|a|a.len()),"temperature_count":data["thermal"]["sensors"].as_array().map(|a|a.len()),"usb":crate::transport::usb::scan().ok()})}
+pub fn doctor()->Value{let data=crate::modules::Collector::snapshot();json!({"dependencies":check(),"rapl_source":data["power"]["rapl_source"],"rapl_domains":data["power"]["rapl_domains"],"rapl_inaccessible":data["power"]["rapl_inaccessible"],"smart":data["storage"]["smart"],"fan_count":data["fan"]["sensors"].as_array().map(|a|a.len()),"temperature_count":data["thermal"]["sensors"].as_array().map(|a|a.len()),"usb":crate::transport::usb::scan().ok()})}

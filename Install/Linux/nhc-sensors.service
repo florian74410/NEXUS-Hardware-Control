@@ -1,0 +1,23 @@
+[Unit]
+Description=NHC fixed read-only hardware sensor publisher
+After=local-fs.target
+[Service]
+Type=simple
+User=root
+Group=nhc-sensors
+ExecStart=/usr/bin/python3 -I /usr/local/libexec/nhc-sensor-helper.py
+RuntimeDirectory=nhc-sensors
+RuntimeDirectoryMode=0750
+UMask=0027
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX
+[Install]
+WantedBy=multi-user.target

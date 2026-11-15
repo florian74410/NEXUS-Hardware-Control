@@ -13,6 +13,9 @@ impl Power{
  next.insert(key,(e,now));domains.push(json!({"name":read(p.join("name")),"source":p,"energy_uj":e,"power_w":watts}));
  }self.prev=next;
  let batteries:Vec<_>=dirs("/sys/class/power_supply").into_iter().filter(|p|read(p.join("type")).as_deref()==Some("Battery")).map(|p|json!({"name":name(&p),"capacity_percent":num(p.join("capacity")),"status":read(p.join("status")),"power_w":num(p.join("power_now")).map(|x|x/1e6).or_else(||Some(num(p.join("voltage_now"))?*num(p.join("current_now"))?/1e12))})).collect();
- json!({"rapl_domains":domains,"rapl_inaccessible":inaccessible,"batteries":batteries,"system_total_w":null})
+ let helper=super::helper::read("rapl",5.0);
+ let source=if helper.is_some(){"helper"}else{"direct"};
+ if let Some(v)=helper{if let Some(rows)=v.as_array(){domains=rows.clone();inaccessible.retain(|p|{let canonical=std::fs::canonicalize(p).ok();!domains.iter().any(|d|canonical.as_ref().map(|p|p.to_string_lossy().as_ref()==d["source"].as_str().unwrap_or("")).unwrap_or(false))});}}
+ json!({"rapl_source":source,"rapl_domains":domains,"rapl_inaccessible":inaccessible,"batteries":batteries,"system_total_w":null})
  }
 }
