@@ -1,0 +1,2 @@
+# Serial handshake v1
+115200 baud, 8N1, UTF-8 JSON Lines, max 4096 bytes excluding LF. Host initiates hello; Touch returns hello_ack with same nonce and device nhc-touch, version 1. Host sends ping; Touch replies pong with the same identity, version and nonce. Unknown messages ignored. A CH340 VID/PID is only a candidate, not proof of NHC identity. Nonce correlates requests, not authentication. No hardware writes. Foreground diagnostic only; persistent daemon, IPC and streaming are future work.

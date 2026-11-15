@@ -1,3 +1,10 @@
-fn main() {
-    println!("NHC Core 0.0.1 | {} | {}", std::env::consts::OS, std::env::consts::ARCH);
+mod cli;
+mod engine;
+mod transport;
+
+fn main() -> std::process::ExitCode {
+    match cli::run(std::env::args().skip(1).collect()) {
+        Ok(()) => std::process::ExitCode::SUCCESS,
+        Err(e) => { eprintln!("nhc: {e}"); std::process::ExitCode::FAILURE }
+    }
 }
