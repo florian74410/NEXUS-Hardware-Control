@@ -4,3 +4,6 @@ Vendor: https://docs.freenove.com/projects/fnk0103/en/latest/ ; https://github.c
 
 ## 0.0.3.1 crash fix candidate
 Observed LoadProhibited (0xA5A5A5AD), backtrace TFT_eSPI::textWidth from Panel::metrics. Static lifetime for Panel and Link (removes objects from task stacks and zero-initializes storage), explicit built-in font selection and avoid font 1 draw path. Keep SPI and task stack sizes unchanged. Exact vendor source line and hardware validation pending.
+
+## 0.0.4 Graphics Alpha
+Reusable dirty-region renderer caches text/color, with one 448x32 RGB565 sprite (28672 bytes of pixel data plus overhead) and direct-render fallback if allocation fails. UI task owns display and sprite. Calibration key cal-v2 forces a fresh calibration on first boot of this release; CALIBRATE button repeats it and stores parameters in NVS. UI updates/s counts changed render passes, not panel FPS. No SPI or partition changes. Compile/hardware validation pending.
