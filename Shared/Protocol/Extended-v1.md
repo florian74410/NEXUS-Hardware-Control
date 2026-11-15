@@ -1,0 +1,2 @@
+# Extended telemetry
+Core 0.0.9 / Touch 0.1.0. Same version 1 envelope, negotiated telemetry_extended. Added non_rc6_percent (NOT GPU utilization), disk capacity/wear, thermal count/max, board voltage count. Missing values null. USB retry explicit path every 3s. Theme has overview, module pages, ESP diagnostics and settings. PWM GPIO27 5kHz 8-bit, 30% default, persisted palette and brightness. No cross-platform changes. Build/hardware validation pending.

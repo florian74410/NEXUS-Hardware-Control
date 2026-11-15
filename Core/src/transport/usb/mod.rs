@@ -107,7 +107,7 @@ mod tests {
     }
 }
 
-pub fn stream(path:&str)->Result<(),String>{
+fn stream_once(path:&str)->Result<(),String>{
     let mut port=serialport::new(path,BAUD).timeout(Duration::from_millis(100)).open().map_err(|e|e.to_string())?;
     std::thread::sleep(Duration::from_millis(1200));
     let nonce=format!("stream-{}-{}",std::process::id(),SystemTime::now().duration_since(UNIX_EPOCH).map_err(|e|e.to_string())?.as_nanos());
@@ -125,7 +125,13 @@ pub fn stream(path:&str)->Result<(),String>{
         let compact=crate::projection::compact(&data,hello["telemetry_extended"].as_bool()==Some(true));
         let req=json!({"type":"telemetry","version":1,"nonce":ack_nonce,"session":nonce,"seq":seq,"data":compact});
         exchange(&mut *port,req,"telemetry_ack",&ack_nonce)?;
-        println!("{}",serde_json::to_string(&data).map_err(|e|e.to_string())?);
+        println!("{}",serde_json::to_string(&compact).map_err(|e|e.to_string())?);
         std::thread::sleep(Duration::from_secs(1));
     }
+}
+
+pub fn stream(path:&str)->Result<(),String>{
+ // Explicit path only: never probe unrelated serial devices.
+ loop {if let Err(e)=stream_once(path){eprintln!("USB offline: {e}; retry in 3s");}
+ std::thread::sleep(Duration::from_secs(3));}
 }

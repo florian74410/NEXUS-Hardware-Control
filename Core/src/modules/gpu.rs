@@ -1,6 +1,8 @@
 use super::sys::*;
 use serde_json::{json,Value};
-pub fn sample()->Value{
+use std::{collections::BTreeMap,time::Instant};
+#[derive(Default)]pub struct Gpu{previous:BTreeMap<String,(f64,Instant)>}
+impl Gpu{pub fn sample(&mut self)->Value{
  let mut devices=Vec::new();
  for p in dirs("/sys/class/drm"){
  let card=name(&p);if !card.strip_prefix("card").map_or(false,|s|!s.is_empty()&&s.bytes().all(|b|b.is_ascii_digit())){continue;}
@@ -10,9 +12,12 @@ pub fn sample()->Value{
  let actual=num(p.join("gt_act_freq_mhz")).or_else(||num(p.join("gt/gt0/rps_act_freq_mhz")));
  let requested=num(p.join("gt_cur_freq_mhz")).or_else(||num(p.join("gt/gt0/rps_cur_freq_mhz")));
  let rc6=num(p.join("power/rc6_residency_ms")).or_else(||num(p.join("gt/gt0/rc6_residency_ms")));
- devices.push(json!({"card":card,"frequency_mhz":actual,"requested_frequency_mhz":requested,"rc6_residency_ms":rc6,"vendor_id":read(d.join("vendor")),"device_id":read(d.join("device")),"driver":driver,"usage_percent":num(d.join("gpu_busy_percent")),"temperature_c":temp,"power_w":power,"fan_rpm":fan,"vram_used_mib":num(d.join("mem_info_vram_used")).map(|x|x/1048576.0),"vram_total_mib":num(d.join("mem_info_vram_total")).map(|x|x/1048576.0)}));
+ let now=Instant::now();
+ let active_proxy=rc6.and_then(|r|{let old=self.previous.insert(card.clone(),(r,now));let (prev,t)=old?;let dt=now.duration_since(t).as_secs_f64()*1000.0;if dt<=0.0||r<prev||r-prev>dt*1.05{return None;}Some((100.0*(1.0-(r-prev)/dt)).clamp(0.0,100.0))});
+ devices.push(json!({"card":card,"frequency_mhz":actual,"requested_frequency_mhz":requested,"rc6_residency_ms":rc6,"non_rc6_percent":active_proxy,"vendor_id":read(d.join("vendor")),"device_id":read(d.join("device")),"driver":driver,"usage_percent":num(d.join("gpu_busy_percent")),"temperature_c":temp,"power_w":power,"fan_rpm":fan,"vram_used_mib":num(d.join("mem_info_vram_used")).map(|x|x/1048576.0),"vram_total_mib":num(d.join("mem_info_vram_total")).map(|x|x/1048576.0)}));
  }
  let has_nvidia=devices.iter().any(|v|v["vendor_id"].as_str()==Some("0x10de")) || dirs("/sys/bus/pci/devices").iter().any(|p|read(p.join("vendor")).as_deref()==Some("0x10de")&&read(p.join("class")).map_or(false,|s|s.starts_with("0x03")));
  let nv=if has_nvidia{super::nvidia::sample()}else{vec![]};
  let first=devices.first().cloned().unwrap_or(json!({}));json!({"usage_percent":first["usage_percent"],"temperature_c":first["temperature_c"],"power_w":first["power_w"],"devices":devices,"nvidia":nv})
+}
 }
