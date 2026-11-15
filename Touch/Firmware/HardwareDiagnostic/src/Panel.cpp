@@ -3,6 +3,7 @@
 #include <cmath>
 #include <driver/ledc.h>
 #include "Effects.h"
+#include "Backdrop.h"
 namespace {
 constexpr uint16_t BG=0x0863, PANEL=0x10A5, DARK=0x2188, WHITE=0xE71C, GREEN=0x27EB, RED=0xF92B, BLUE=0x06FF, AMBER=0xFD20;
 uint16_t accents[]={BLUE,RED,0x37E8};
@@ -74,6 +75,7 @@ void Panel::begin(){
 void Panel::layout(){
  renderer.invalidate();for(int& v:bars)v=-2;for(int& v:gauges)v=-2;for(int& v:barTargets)v=-1;for(int& v:gaugeTargets)v=-1;for(int& w:barW)w=0;phase=0;glitch=false;
  uint16_t a=accents[palette];tft.fillScreen(BG);
+ Backdrop::draw(tft,page,BG,a);
  tft.drawFastHLine(12,39,456,a);tft.drawFastHLine(12,269,456,DARK);
  // Static circuit rails occupy only the reserved gaps between text and navigation.
  for(int x=18;x<460;x+=22){tft.drawFastHLine(x,43,10,DARK);tft.drawPixel(x+10,44,a);}
@@ -148,6 +150,10 @@ void Panel::animate(const Snapshot& s,uint32_t now){
  tft.fillRect(16,272,448,4,BG);
  if(s.hostFresh&&pulse&&now-pulseAt<800){for(int i=0;i<10;i++){int x=16+((int((now-pulseAt)/3)+i*47)%438);tft.drawFastHLine(x,273,3+(i%3),i%3==0?WHITE:a);}}
  else pulse=false;
+ // Two small electronic data nodes on the otherwise reserved side rails.
+ if(s.hostFresh&&pulse){int pos=int((now-pulseAt)/12)%12;for(int j=0;j<12;j++){int y=83+j*14;uint16_t c=j==pos?a:Effects::blend(BG,a,1,5);tft.drawFastHLine(2,y,3,c);tft.drawFastHLine(475,237-j*14,3,c);}}
+ else if(phase){for(int j=0;j<12;j++){tft.drawFastHLine(2,83+j*14,3,Effects::blend(BG,a,1,5));tft.drawFastHLine(475,237-j*14,3,Effects::blend(BG,a,1,5));}}
+ phase=(s.hostFresh&&pulse)?1:0;
  if(glitch){uint32_t age=now-glitchAt;if(age>=240){navButton(glitchButton,false);glitch=false;}else{
  int x=12+155*glitchButton;int offset=(age/65)%3;navButton(glitchButton,true);
  tft.drawFastHLine(x+5+offset*24,280+offset*7,34,offset==1?RED:WHITE);
