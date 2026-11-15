@@ -1,8 +1,6 @@
 // NHC preliminary serial-only diagnostic. No display pins or flash layout assumptions.
 #include <Arduino.h>
 #include <ArduinoJson.h>
-#include <WiFi.h>
-#include <esp_bt.h>
 
 static char frame[4097];
 static size_t len = 0;
@@ -23,7 +21,7 @@ void handleFrame() {
   out["version"] = 1;
   out["nonce"] = nonce;
   out["device"] = "nhc-touch";
-  out["firmware"] = "0.0.1-serial";
+  out["firmware"] = "0.0.2-serial";
   out["cpu_mhz"] = getCpuFrequencyMhz();
   out["heap_free"] = ESP.getFreeHeap();
   out["flash_bytes"] = ESP.getFlashChipSize();
@@ -33,8 +31,7 @@ void handleFrame() {
 }
 void setup() {
   setCpuFrequencyMhz(240);
-  WiFi.mode(WIFI_OFF);
-  if (btStarted()) btStop();
+  // Radios are deliberately never initialized in this serial-only build.
   Serial.begin(115200);
 }
 void loop() {

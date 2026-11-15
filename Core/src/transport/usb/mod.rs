@@ -2,7 +2,7 @@ use crate::engine::Module;
 use serde::Serialize;
 use serde_json::{json, Value};
 use serialport::{SerialPortInfo, SerialPortType};
-use std::{io::{Read, Write}, time::{Duration, Instant, SystemTime, UNIX_EPOCH}};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 const BAUD: u32 = 115_200;
 const MAX_FRAME: usize = 4096;
