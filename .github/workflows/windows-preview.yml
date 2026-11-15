@@ -1,0 +1,33 @@
+name: Windows preview build
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'Core/**'
+      - 'Install/Windows/**'
+      - '.github/workflows/windows-preview.yml'
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Rust toolchain
+        run: rustup target add x86_64-pc-windows-msvc
+      - name: Build preview
+        shell: pwsh
+        run: ./Install/Windows/build.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NHC-Windows-x64-preview
+          path: dist/NHC-Windows-x64.zip
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y libudev-dev pkg-config
+      - run: cargo test --manifest-path Core/Cargo.toml
