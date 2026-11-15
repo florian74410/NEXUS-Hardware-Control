@@ -4,6 +4,7 @@
 #include <driver/ledc.h>
 #include "Effects.h"
 #include "Backdrop.h"
+#include "Icons.h"
 namespace {
 constexpr uint16_t BG=0x0863, PANEL=0x10A5, DARK=0x2188, WHITE=0xE71C, GREEN=0x27EB, RED=0xF92B, BLUE=0x06FF, AMBER=0xFD20;
 uint16_t accents[]={BLUE,RED,0x37E8};
@@ -83,14 +84,17 @@ void Panel::layout(){
  tft.drawFastVLine(8,78,175,DARK);tft.drawFastVLine(471,78,175,DARK);
  for(int y=80;y<255;y+=24){tft.drawPixel(8,y,a);tft.drawPixel(471,y,a);}
  tft.fillRect(12,10,5,20,a);label(tft,"NEXUS // HARDWARE",24,12,a);
- label(tft,pages[page],16,48,a);label(tft,"SET",410,48,a);
+ Icons::draw(tft,Icons::page(page),16,49,a);label(tft,pages[page],40,48,a);Icons::draw(tft,Icons::Settings,391,49,a);label(tft,"SET",415,48,a);
+ Icons::draw(tft,Icons::Usb,304,13,a);
  for(int k=0;k<3;k++)navButton(k,false);
  if(page==12){
- label(tft,"BACKLIGHT / PWM",20,81,a);tft.drawRect(258,48,132,23,a);tft.setTextColor(a,BG);tft.drawCentreString(fx?"FX ON":"FX OFF",324,51,2);tft.drawRect(24,111,432,26,DARK);
+ Icons::draw(tft,Icons::Sun,20,82,a);label(tft,"BACKLIGHT / PWM",44,81,a);tft.drawRect(258,48,132,23,a);tft.setTextColor(a,BG);tft.drawCentreString(fx?"FX ON":"FX OFF",324,51,2);tft.drawRect(24,111,432,26,DARK);
  tft.drawRect(24,154,132,36,a);tft.drawRect(174,154,132,36,a);tft.drawRect(324,154,132,36,a);
  tft.setTextColor(a,BG);tft.drawCentreString("NIGHT 10%",90,164,2);tft.drawCentreString("NORMAL 30%",240,164,2);tft.drawCentreString("MAX 100%",390,164,2);
  tft.drawRect(24,211,202,39,a);tft.drawRect(254,211,202,39,a);tft.drawCentreString("CHANGE COLOR",125,222,2);tft.drawCentreString("CALIBRATE",355,222,2);
  }else if(page==0||page==1||page==2||page==5){
+ Icons::draw(tft,page==2?Icons::Gpu:page==5?Icons::Fan:Icons::Chip,117,106,a);Icons::draw(tft,page==0?Icons::Ram:Icons::Temp,347,106,a);
+ if(page!=5){Icons::draw(tft,page==0?Icons::Temp:Icons::Wave,20,236,a);Icons::draw(tft,Icons::Bolt,245,236,a);}
  for(int x:{125,355}){tft.drawCircle(x,148,76,DARK);for(int i=0;i<=30;i++){float r=(135+i*9)*0.0174532925f;tft.drawLine(x+cosf(r)*69,148+sinf(r)*69,x+cosf(r)*75,148+sinf(r)*75,DARK);}}
  }else{
  for(int i=0;i<4;i++){int y=84+i*44;tft.drawFastHLine(20,y+32,440,DARK);}
@@ -105,7 +109,7 @@ void Panel::layout(){
  case 10:names[0]="HOST UPTIME";names[1]="BATTERY";break;
  case 11:names[0]="FREE HEAP";names[1]="CLOCK";names[2]="RX PACKETS";names[3]="UPTIME";break;
  }
- for(int i=0;i<4;i++)if(names[i])label(tft,names[i],20,84+i*44,WHITE);
+ for(int i=0;i<4;i++)if(names[i]){Icons::draw(tft,Icons::metric(page,i),20,85+i*44,a);label(tft,names[i],44,84+i*44,WHITE);}
  }
 }
 void Panel::field(int id,int x,int y,int w,float value,const char* unit,uint16_t color,int digits){
@@ -134,10 +138,11 @@ void Panel::renderBar(int idx,int n){
 }
 void Panel::navButton(int id,bool active){
  if(id<0||id>2)return;
- int x=12+id*155;uint16_t a=accents[palette];const char* titles[]={"< PREV","HOME","NEXT >"};
+ int x=12+id*155;uint16_t a=accents[palette];
  tft.fillRect(x+1,279,143,28,active?DARK:BG);tft.drawRect(x,278,145,30,a);
  tft.drawFastHLine(x+4,281,14,a);tft.drawFastHLine(x+125,304,15,a);
- tft.setTextColor(active?WHITE:a,active?DARK:BG);tft.drawCentreString(titles[id],x+72,284,2);
+ Icons::draw(tft,id==0?Icons::Left:id==1?Icons::Home:Icons::Right,x+18,284,active?WHITE:a);
+ tft.setTextColor(active?WHITE:a,active?DARK:BG);tft.drawCentreString(id==0?"PREV":id==1?"HOME":"NEXT",x+84,284,2);
 }
 void Panel::trigger(int id){if(!fx||id<0)return;glitch=true;glitchAt=millis();glitchButton=id;navButton(id,true);}
 void Panel::animate(const Snapshot& s,uint32_t now){
@@ -146,14 +151,14 @@ void Panel::animate(const Snapshot& s,uint32_t now){
  if(page==0||page==1||page==2||page==5)for(int i=0;i<2;i++)if(gauges[i]!=gaugeTargets[i])renderGauge(i,Effects::ease(gauges[i],gaugeTargets[i]));
  for(int i=0;i<4;i++)if(barW[i]>0&&bars[i]!=barTargets[i])renderBar(i,Effects::ease(bars[i],barTargets[i]));
  uint16_t a=accents[palette];
- // Tiny reserved particle rail; bursts correspond to received USB frames.
- tft.fillRect(16,272,448,4,BG);
- if(s.hostFresh&&pulse&&now-pulseAt<800){for(int i=0;i<10;i++){int x=16+((int((now-pulseAt)/3)+i*47)%438);tft.drawFastHLine(x,273,3+(i%3),i%3==0?WHITE:a);}}
- else pulse=false;
- // Two small electronic data nodes on the otherwise reserved side rails.
- if(s.hostFresh&&pulse){int pos=int((now-pulseAt)/12)%12;for(int j=0;j<12;j++){int y=83+j*14;uint16_t c=j==pos?a:Effects::blend(BG,a,1,5);tft.drawFastHLine(2,y,3,c);tft.drawFastHLine(475,237-j*14,3,c);}}
- else if(phase){for(int j=0;j<12;j++){tft.drawFastHLine(2,83+j*14,3,Effects::blend(BG,a,1,5));tft.drawFastHLine(475,237-j*14,3,Effects::blend(BG,a,1,5));}}
- phase=(s.hostFresh&&pulse)?1:0;
+ // Four moving particles maximum, all in the dedicated 4px footer rail.
+ // Clear only old particle footprints. No drawing over sensor regions.
+ if(phase){for(int i=0;i<4;i++){int x=20+((phase-1+i*109)%432);tft.drawFastHLine(x,273,4,BG);}}
+ if(s.hostFresh&&pulse&&now-pulseAt<700){
+   int pos=int((now-pulseAt)/5)%432;
+   for(int i=0;i<4;i++){int x=20+((pos+i*109)%432);tft.drawFastHLine(x,273,4,i==0?WHITE:a);}
+   phase=pos+1;
+ }else{phase=0;pulse=false;}
  if(glitch){uint32_t age=now-glitchAt;if(age>=240){navButton(glitchButton,false);glitch=false;}else{
  int x=12+155*glitchButton;int offset=(age/65)%3;navButton(glitchButton,true);
  tft.drawFastHLine(x+5+offset*24,280+offset*7,34,offset==1?RED:WHITE);
@@ -166,7 +171,7 @@ void Panel::metrics(const Snapshot& s){
  auto row=[&](int i,const char* name,float value,const char* unit,int digits=1){int y=84+i*44;(void)name;field(i+1,242,y,214,value,unit,a,digits);};
  auto dial=[&](int i,const char* name,float val,const char* unit,float fill){int x=i?355:125;gauge(i,x,148,fill,a);char b[40];if(isfinite(val))snprintf(b,sizeof(b),"%.1f %s",val,unit);else strcpy(b,"N/A");renderer.draw(i+1,x-54,134,108,32,b,WHITE,BG,4);renderer.draw(5+i,x-55,177,110,20,name,a,BG,2);};
  switch(page){
- case 0:dial(0,"CPU LOAD",v(s.hostCpu),"%",v(s.hostCpu));dial(1,"RAM",v(percent(s.hostRamUsed,s.hostRamTotal)),"%",v(percent(s.hostRamUsed,s.hostRamTotal)));field(3,20,235,205,v(s.hostTemp),"C",a);field(4,245,235,205,v(s.hostCpuPower),"W CPU",a);break;
+ case 0:dial(0,"CPU LOAD",v(s.hostCpu),"%",v(s.hostCpu));dial(1,"RAM",v(percent(s.hostRamUsed,s.hostRamTotal)),"%",v(percent(s.hostRamUsed,s.hostRamTotal)));field(3,44,235,181,v(s.hostTemp),"C",a);field(4,269,235,181,v(s.hostCpuPower),"W CPU",a);break;
  case 1:dial(0,"CPU LOAD",v(s.hostCpu),"%",v(s.hostCpu));dial(1,"CPU TEMP",v(s.hostTemp),"C",v(s.hostTemp));field(3,20,235,205,v(s.hostMhz),"MHz",a,0);field(4,245,235,205,v(s.hostCpuPower),"W",a);break;
  case 2:{bool real=isfinite(s.hostGpu);float load=real?s.hostGpu:s.hostGpuAwake;dial(0,real?"GPU LOAD":"NON-RC6",v(load),"%",v(load));dial(1,"GPU TEMP",v(s.hostGpuTemp),"C",v(s.hostGpuTemp));field(3,20,235,205,v(s.hostGpuMhz),"MHz",a,0);field(4,245,235,205,v(s.hostGpuPower),"W",a);break;}
  case 3:row(0,"RAM USED",v(s.hostRamUsed),"MiB",0);row(1,"RAM TOTAL",v(s.hostRamTotal),"MiB",0);row(2,"UTILIZATION",v(percent(s.hostRamUsed,s.hostRamTotal)),"%");bar(0,20,242,436,v(percent(s.hostRamUsed,s.hostRamTotal)),a);break;
