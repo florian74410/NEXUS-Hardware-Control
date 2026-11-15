@@ -9,8 +9,16 @@ fn main() -> std::process::ExitCode {
     }
 }
 
+#[cfg(not(windows))]
+mod modules;
+#[cfg(windows)]
+#[path = "windows/mod.rs"]
 mod modules;
 
+#[cfg(not(windows))]
+mod deployment;
+#[cfg(windows)]
+#[path = "windows/deployment.rs"]
 mod deployment;
 
 mod service;

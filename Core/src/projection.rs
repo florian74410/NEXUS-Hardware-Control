@@ -5,6 +5,7 @@ fn sum(v:&Value,key:&str)->Option<f64>{let mut it=rows(v).filter_map(|x|x[key].a
 pub fn compact(d:&Value,extended:bool)->Value{
  let mut v=json!({"cpu":{"usage_percent":d["cpu"]["usage_percent"],"frequency_mhz":d["cpu"]["frequency_mhz"],"temperature_c":d["cpu"]["temperature_c"]},"ram":{"used_mib":d["ram"]["used_mib"],"total_mib":d["ram"]["total_mib"]}});
  if !extended{return v;}
+ if let Some(w)=d["windows_touch"].as_object(){for (k,val) in w {v[k]=val.clone();}return v;}
  let gpu=rows(&d["gpu"]["nvidia"]).next().cloned().unwrap_or_else(||first(&d["gpu"]["devices"]));
  let disk=rows(&d["storage"]["devices"]).find(|x|x["device"].as_str().map_or(false,|s|s.starts_with("sd")||s.starts_with("nvme")||s.starts_with("hd"))).cloned().unwrap_or(Value::Null);
  let smart=rows(&d["storage"]["smart"]).find(|x|!disk["device"].is_null()&&x["device"]==disk["device"]).cloned().unwrap_or(Value::Null);
