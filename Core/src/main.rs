@@ -8,3 +8,5 @@ fn main() -> std::process::ExitCode {
         Err(e) => { eprintln!("nhc: {e}"); std::process::ExitCode::FAILURE }
     }
 }
+
+mod modules;

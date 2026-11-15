@@ -105,3 +105,25 @@ mod tests {
         assert!(response(br#"{"type":"pong","version":1,"nonce":"abc","device":"other"}"#,"pong","abc").is_none());
     }
 }
+
+pub fn stream(path:&str)->Result<(),String>{
+    let mut port=serialport::new(path,BAUD).timeout(Duration::from_millis(100)).open().map_err(|e|e.to_string())?;
+    std::thread::sleep(Duration::from_millis(1200));
+    let nonce=format!("stream-{}-{}",std::process::id(),SystemTime::now().duration_since(UNIX_EPOCH).map_err(|e|e.to_string())?.as_nanos());
+    let hello=exchange(&mut *port,json!({"type":"hello","version":1,"nonce":nonce}),"hello_ack",&nonce)?;
+    if hello["telemetry"].as_bool()!=Some(true){return Err("Touch firmware does not support telemetry; upgrade Touch first".into());}
+    eprintln!("NHC Touch verified; streaming every 1000 ms (Ctrl+C to stop)");
+    let mut collector=crate::modules::Collector::default();
+    collector.sample();
+    std::thread::sleep(Duration::from_millis(250));
+    let mut seq=0u64;
+    loop {
+        seq+=1;
+        let data=collector.sample();
+        let ack_nonce=format!("{nonce}-{seq}");
+        let req=json!({"type":"telemetry","version":1,"nonce":ack_nonce,"session":nonce,"seq":seq,"data":data});
+        exchange(&mut *port,req,"telemetry_ack",&ack_nonce)?;
+        println!("{}",serde_json::to_string(&data).map_err(|e|e.to_string())?);
+        std::thread::sleep(Duration::from_secs(1));
+    }
+}

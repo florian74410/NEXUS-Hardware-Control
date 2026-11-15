@@ -1,7 +1,7 @@
 use crate::{engine, transport::usb};
 use serde_json::{json, Value};
 
-const HELP: &str = "NHC Core — CLI\n\n  nhc status [--json]\n  nhc modules list [--json]\n  nhc usb scan [--json]\n  nhc usb ping --port PORT [--json]\n  nhc --version\n  nhc --help\n\nScan never opens a port. Ping opens only the explicitly selected port. Do not ping while flashing or backing up.";
+const HELP: &str = "NHC Core — CLI\n\n  nhc status [--json]\n  nhc modules list [--json]\n  nhc usb scan [--json]\n  nhc usb ping --port PORT [--json]\n  nhc data get [--json]\n  nhc cpu get [--json]\n  nhc ram get [--json]\n  nhc usb stream --port PORT\n  nhc --version\n  nhc --help\n\nScan never opens a port. Ping opens only the explicitly selected port. Do not ping while flashing or backing up.";
 
 fn output(v: Value, json_mode: bool) {
     if json_mode { println!("{}", serde_json::to_string(&v).unwrap()); }
@@ -16,9 +16,13 @@ pub fn run(mut args: Vec<String>) -> Result<(), String> {
         [] | ["--help"] | ["help"] => println!("{HELP}"),
         ["--version"] => println!("nhc {}", env!("CARGO_PKG_VERSION")),
         ["status"] => output(engine::status(&[&usb::UsbModule]),json_mode),
-        ["modules","list"] => output(json!({"implemented":["usb"]}),json_mode),
+        ["modules","list"] => output(json!({"implemented":["usb","cpu","ram","thermal"]}),json_mode),
         ["usb","scan"] => output(json!({"candidates":usb::scan()?}),json_mode),
         ["usb","ping","--port",path] => output(usb::ping(path)?,json_mode),
+        ["data","get"] => output(crate::modules::Collector::snapshot(),json_mode),
+        ["cpu","get"] => output(crate::modules::Collector::snapshot()["cpu"].clone(),json_mode),
+        ["ram","get"] => output(crate::modules::Collector::snapshot()["ram"].clone(),json_mode),
+        ["usb","stream","--port",path] => usb::stream(path)?,
         _ => return Err(format!("Unknown command. Run nhc --help")),
     }
     Ok(())

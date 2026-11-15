@@ -5,7 +5,7 @@
 class Panel {
   TFT_eSPI tft;
   RegionRenderer renderer{tft};
-  bool ready=false, pressed=false, detail=false;
+  bool ready=false, pressed=false, detail=false; uint8_t page=0;
   uint32_t lastDraw=0, frames=0, fpsStart=0, fps=0, renderUs=0;
   uint16_t cal[5]{};
   void layout();

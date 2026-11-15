@@ -17,11 +17,21 @@ void Link::handle() {
   const char* reply=nullptr;
   if(!strcmp(type,"hello")) reply="hello_ack";
   else if(!strcmp(type,"ping")) reply="pong";
-  else return;
+  else if(!strcmp(type,"telemetry")) {
+    if(!in["data"].is<JsonObject>()) return;
+    JsonVariant d=in["data"];
+    hostCpu=d["cpu"]["usage_percent"] | -1.0f;
+    hostMhz=d["cpu"]["frequency_mhz"] | -1.0f;
+    hostTemp=d["cpu"]["temperature_c"] | -999.0f;
+    hostRamUsed=d["ram"]["used_mib"] | -1.0f;
+    hostRamTotal=d["ram"]["total_mib"] | -1.0f;
+    hostSeen=true; hostLast=millis(); reply="telemetry_ack";
+  } else return;
   seen=true; last=millis(); ++packets;
   JsonDocument out;
   out["type"]=reply; out["version"]=1; out["nonce"]=nonce;
-  out["device"]="nhc-touch"; out["firmware"]="0.0.4-graphics-alpha";
+  out["device"]="nhc-touch"; out["firmware"]="0.0.5-telemetry";
+  out["telemetry"]=true;
   out["cpu_mhz"]=getCpuFrequencyMhz(); out["heap_free"]=ESP.getFreeHeap();
   out["heap_min"]=ESP.getMinFreeHeap(); out["flash_bytes"]=ESP.getFlashChipSize();
   out["psram_bytes"]=ESP.getPsramSize(); out["data_core"]=xPortGetCoreID();
@@ -44,6 +54,9 @@ void Link::poll() {
     Snapshot s{ESP.getFreeHeap(),ESP.getMinFreeHeap(),ESP.getFlashChipSize(),
       ESP.getPsramSize(),getCpuFrequencyMhz(),packets,now/1000,
       uint8_t(xPortGetCoreID()),seen,recent};
+    s.hostCpu=hostCpu; s.hostMhz=hostMhz; s.hostTemp=hostTemp;
+    s.hostRamUsed=hostRamUsed; s.hostRamTotal=hostRamTotal;
+    s.hostFresh=hostSeen && uint32_t(now-hostLast)<3500;
     xQueueOverwrite(snapshots,&s);
   }
 }

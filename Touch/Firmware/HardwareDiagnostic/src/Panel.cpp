@@ -37,8 +37,13 @@ void Panel::layout() {
   tft.fillScreen(BG); tft.drawRect(6,6,468,308,DARK);
   tft.drawFastHLine(14,37,452,CYAN); tft.setTextColor(CYAN,BG);
   tft.drawString("NEXUS // INTERNAL MONITOR",18,15,2);
-  tft.drawString(detail?"DIAGNOSTICS":"DUAL CORE // SHARED CLOCK",18,46,2);
-  if(!detail) {
+  if(page!=2) tft.drawString(detail?"DIAGNOSTICS":"DUAL CORE // SHARED CLOCK",18,46,2);
+  if(page==2) {
+    tft.setTextColor(CYAN,BG);
+    tft.drawString("PC TELEMETRY / LIVE",18,46,2);
+    const char* names[]={"CPU usage","CPU clock","CPU temperature","RAM used","RAM total"};
+    for(int i=0;i<5;++i) tft.drawString(names[i],24,85+i*34,2);
+  } else if(!detail) {
     for(int x : {125,355}) {
       tft.drawCircle(x,135,65,CYAN); tft.drawCircle(x,135,70,DARK);
       for(int i=0;i<36;++i) {
@@ -55,14 +60,24 @@ void Panel::layout() {
   }
   tft.setTextColor(CYAN,BG);
   tft.drawRect(16,276,215,29,CYAN); tft.drawRect(249,276,215,29,CYAN);
-  tft.drawCentreString(detail?"OVERVIEW":"DETAILS",123,283,2);
+  tft.drawCentreString(page==0?"DETAILS":page==1?"PC DATA":"OVERVIEW",123,283,2);
   tft.drawCentreString("CALIBRATE",356,283,2);
 }
 bool Panel::metrics(const Snapshot& s) {
   char buf[80]; bool changed=false;
   uint16_t col=s.recent?GREEN:(s.seen?RED:CYAN);
   changed |= renderer.draw(0,319,12,142,20,s.recent?"RX ACTIVE":(s.seen?"LAST RX > 5s":"AWAIT HOST"),col,BG,2,true);
-  if(!detail) {
+  if(page==2) {
+    const float values[]={s.hostCpu,s.hostMhz,s.hostTemp,s.hostRamUsed,s.hostRamTotal};
+    const char* units[]={"%","MHz","C","MiB","MiB"};
+    for(int i=0;i<5;++i){
+      bool valid=s.hostFresh && (i==2?values[i]>-999:values[i]>=0);
+      if(valid) snprintf(buf,sizeof(buf),"%.1f %s",values[i],units[i]);
+      else strcpy(buf,"N/A");
+      changed |= renderer.draw(1+i,250,85+i*34,198,20,buf,WHITE,BG,2,true);
+    }
+    changed |= renderer.draw(7,16,251,448,19,s.hostFresh?"LIVE DATA":"WAITING / DATA STALE",s.hostFresh?GREEN:RED,BG);
+  } else if(!detail) {
     if(s.mhz) snprintf(buf,sizeof(buf),"%lu",(unsigned long)s.mhz); else strcpy(buf,"--");
     changed |= renderer.draw(1,82,120,86,32,buf,WHITE,BG,4);
     changed |= renderer.draw(2,312,120,86,32,buf,WHITE,BG,4);
@@ -84,7 +99,7 @@ void Panel::tick(const Snapshot& s) {
   if(!ready) return;
   uint16_t x=0,y=0; bool down=tft.getTouch(&x,&y);
   if(down&&!pressed&&y>=276&&y<=305) {
-    if(x>=16&&x<=231) {detail=!detail;layout(); lastDraw=millis()-250;}
+    if(x>=16&&x<=231) {page=(page+1)%3;detail=page==1;layout(); lastDraw=millis()-250;}
     else if(x>=249&&x<=464) {
       // Wait for the triggering touch to be released before calibration.
       while(tft.getTouch(&x,&y)) delay(20);
