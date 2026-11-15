@@ -23,3 +23,22 @@ impl Cpu {
         (load,mhz)
     }
 }
+
+#[derive(Default)]
+pub struct Cores { prev:std::collections::BTreeMap<String,(u64,u64)> }
+impl Cores {
+ pub fn sample(&mut self)->Vec<serde_json::Value>{
+ let clocks:std::collections::BTreeMap<String,f64>=std::fs::read_to_string("/proc/cpuinfo").unwrap_or_default().split("\n\n").filter_map(|block|{
+ let mut id=None;let mut mhz=None;
+ for l in block.lines(){if let Some((k,v))=l.split_once(':'){match k.trim(){"processor"=>id=Some(v.trim().to_owned()),"cpu MHz"=>mhz=v.trim().parse::<f64>().ok().filter(|x|x.is_finite()),_=>{}}}}
+ Some((id?,mhz?))}).collect();
+ let mut next=std::collections::BTreeMap::new();let mut out=Vec::new();
+ for l in std::fs::read_to_string("/proc/stat").unwrap_or_default().lines(){
+ let mut w=l.split_whitespace();let Some(k)=w.next() else{continue};let Some(id)=k.strip_prefix("cpu") else{continue};if id.is_empty()||!id.bytes().all(|b|b.is_ascii_digit()){continue;}
+ let n:Vec<u64>=w.take(8).filter_map(|s|s.parse().ok()).collect();if n.len()<4{continue;}
+ let t=n.iter().sum::<u64>();let i=n[3]+n.get(4).copied().unwrap_or(0);
+ let load=self.prev.get(id).and_then(|&(a,b)|{let dt=t.checked_sub(a)?;let di=i.checked_sub(b)?;if dt==0||di>dt{return None;}Some(100.0*(dt-di) as f64/dt as f64)});
+ next.insert(id.to_owned(),(t,i));out.push(serde_json::json!({"logical_cpu":id.parse::<u32>().ok(),"usage_percent":load,"frequency_mhz":clocks.get(id)}));
+ }self.prev=next;out
+ }
+}

@@ -53,6 +53,7 @@ fn exchange(port: &mut dyn serialport::SerialPort, request: Value, kind: &str, n
     let mut overflow = false;
     let mut next_tx = Instant::now();
     let mut bytes = serde_json::to_vec(&request).map_err(|e|e.to_string())?;
+    if bytes.len()>MAX_FRAME {return Err("USB frame exceeds protocol limit".into());}
     bytes.push(b'\n');
     while Instant::now() < deadline {
         if Instant::now() >= next_tx {
@@ -121,7 +122,9 @@ pub fn stream(path:&str)->Result<(),String>{
         seq+=1;
         let data=collector.sample();
         let ack_nonce=format!("{nonce}-{seq}");
-        let req=json!({"type":"telemetry","version":1,"nonce":ack_nonce,"session":nonce,"seq":seq,"data":data});
+        // Touch 0.0.5 only consumes these five fields. Keep frames bounded regardless of host device count.
+        let compact=json!({"cpu":{"usage_percent":data["cpu"]["usage_percent"],"frequency_mhz":data["cpu"]["frequency_mhz"],"temperature_c":data["cpu"]["temperature_c"]},"ram":{"used_mib":data["ram"]["used_mib"],"total_mib":data["ram"]["total_mib"]}});
+        let req=json!({"type":"telemetry","version":1,"nonce":ack_nonce,"session":nonce,"seq":seq,"data":compact});
         exchange(&mut *port,req,"telemetry_ack",&ack_nonce)?;
         println!("{}",serde_json::to_string(&data).map_err(|e|e.to_string())?);
         std::thread::sleep(Duration::from_secs(1));
