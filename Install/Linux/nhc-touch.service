@@ -1,0 +1,11 @@
+[Unit]
+Description=NHC Touch automatic USB connection
+Wants=nhc-core.service
+After=nhc-core.service
+[Service]
+ExecStart=%h/.local/bin/nhc usb auto
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=yes
+[Install]
+WantedBy=default.target

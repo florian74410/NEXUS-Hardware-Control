@@ -1,2 +1,2 @@
-# Bazzite
-Planned host service in /etc/systemd/system and root-owned executable in /var/opt/nhc; persistent config in /etc/nhc. No image layering, remounting /usr, kernel modification or initramfs edits. Validate on actual Bazzite before release.
+# Bazzite preparation (experimental)
+Build Linux x86_64 nhc in a Fedora-compatible build environment (e.g. Distrobox), then copy only the binary to the host. Build requires Rust, pkg-config, compiler and libudev development headers. Host binary must match host ABI. Run Install/Bazzite/install-user.sh /path/to/nhc on the host, not from a container. No rpm-ostree layering or root filesystem changes by this script. Serial permissions and root sensor helper are not installed automatically; inspect actual host groups/device permissions before granting access. SMART/RAPL may be unavailable. Host GPU tools depend on installed drivers. Not validated on Bazzite.

@@ -1,0 +1,5 @@
+# Session autostart (Core 0.0.10)
+Install as regular user with Install/Linux/install.sh --yes. Stop existing manual USB stream before installing. Both user units start at login and restart on failure; auto stream waits for one CH340 candidate, checks NHC hello identity before transmitting telemetry, and rescans after disconnect. Multiple candidates require manual selection (stop nhc-touch first). Opening a serial candidate may reset it; no generic serial ports are probed. Auto stream suppresses per-frame JSON logging. Touch starts when USB supplies power; it waits for host telemetry without a separate startup script.
+After group changes, sign out fully and sign back in (or reboot). Check systemctl --user status nhc-core nhc-touch; journalctl --user -u nhc-touch -n 30 --no-pager.
+Before flashing: systemctl --user stop nhc-touch. Afterwards: systemctl --user start nhc-touch. Disable automatic connection: systemctl --user disable --now nhc-touch. Manual: nhc usb stream --port /dev/ttyUSB0.
+Do not run multiple serial clients simultaneously. No changes to verified Touch 0.1.6. Compilation, logout/login and hotplug tests pending.

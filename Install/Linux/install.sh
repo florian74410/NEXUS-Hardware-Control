@@ -44,10 +44,13 @@ install -Dm755 target/release/nhc "$HOME/.local/bin/nhc"
 echo "[OK] NHC installed: $HOME/.local/bin/nhc"
 if systemctl --user show-environment >/dev/null 2>&1; then
   install -Dm644 "$ROOT/Install/Linux/nhc-core.service" "$HOME/.config/systemd/user/nhc-core.service"
+  install -Dm644 "$ROOT/Install/Linux/nhc-touch.service" "$HOME/.config/systemd/user/nhc-touch.service"
   systemctl --user daemon-reload
   systemctl --user enable --now nhc-core.service
   systemctl --user restart nhc-core.service
-  echo "[OK] NHC user collector enabled"
+  systemctl --user enable nhc-touch.service
+  systemctl --user restart nhc-touch.service
+  echo "[OK] NHC user collector and automatic Touch connection enabled"
 fi
 "$HOME/.local/bin/nhc" --version
 "$HOME/.local/bin/nhc" doctor

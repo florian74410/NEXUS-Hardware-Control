@@ -1,2 +1,2 @@
-# Windows
-Planned automatic Windows service, limited account, Program Files executable and ProgramData config. Retry device enumeration as drivers initialize. No kernel driver of our own in phase 1.
+# Windows x64 port — planned, not supported yet
+Do not install the Linux binary or Linux sensor helper. The USB framing and projection are portable Rust; collection needs a platform-specific backend for CPU, memory, system, storage and network, and optional GPU/thermal/power providers. Windows uses COM ports and the CH340 driver when needed. Plan: per-user Scheduled Task at logon, native x64 binary, no admin for ordinary monitoring, explicit handling of absent sensors. Test hotplug, suspend/resume, logoff and missing values. No Windows binaries or working installer published yet.
