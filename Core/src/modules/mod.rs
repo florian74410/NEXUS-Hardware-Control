@@ -21,11 +21,13 @@ impl Collector{
  pub fn sample(&mut self)->Value{
  let (load,mhz)=self.cpu.sample();let (used,total)=ram::sample();let (temp,label)=thermal::sample();let sensors=self.sensor_cache.get(2000,sensors::sample);
  let mut power=self.power.sample();power["hwmon"]=sensors["power"].clone();
+ let mut storage=self.storage.sample();
+ storage["smart"]=helper::read("smart",180.0).unwrap_or(Value::Null);
  json!({"cpu":{"usage_percent":load,"frequency_mhz":mhz,"temperature_c":temp,"temperature_source":label,"logical_cpus":self.cores.sample()},
  "ram":{"used_mib":used,"total_mib":total,"usage_percent":used.zip(total).filter(|(_,t)|*t>0).map(|(u,t)|100.0*u as f64/t as f64)},
  "thermal":{"sensors":sensors["temperatures"]},"fan":{"sensors":sensors["fans"]},
  "motherboard":{"vendor":sys::read("/sys/class/dmi/id/board_vendor"),"model":sys::read("/sys/class/dmi/id/board_name"),"voltages":sensors["voltages"],"temperatures":sensors["temperatures"]},
- "gpu":self.gpu_cache.get(500,gpu::sample),"power":power,"storage":{let mut s=self.storage.sample();s["smart"]=helper::read("smart",180.0).unwrap_or(Value::Null);s},"network":self.network.sample(),
+ "gpu":self.gpu_cache.get(500,gpu::sample),"power":power,"storage":storage,"network":self.network.sample(),
  "system":{"os":std::env::consts::OS,"arch":std::env::consts::ARCH,"kernel":sys::read("/proc/sys/kernel/osrelease"),"uptime_seconds":sys::read("/proc/uptime").and_then(|s|s.split_whitespace().next()?.parse::<f64>().ok())}})
  }
  pub fn snapshot()->Value{let mut c=Self::default();c.sample();std::thread::sleep(Duration::from_millis(250));let mut v=c.sample();if v["storage"]["smart"].is_null(){v["storage"]["smart"]=c.smart_cache.get(60000,smart::sample);}v}
