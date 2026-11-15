@@ -2,6 +2,7 @@
 #include <Preferences.h>
 #include <cmath>
 #include <driver/ledc.h>
+#include "Effects.h"
 namespace {
 constexpr uint16_t BG=0x0863, PANEL=0x10A5, DARK=0x2188, WHITE=0xE71C, GREEN=0x27EB, RED=0xF92B, BLUE=0x06FF, AMBER=0xFD20;
 uint16_t accents[]={BLUE,RED,0x37E8};
@@ -54,14 +55,14 @@ void Panel::light(){
  unsigned duty=(brightness*255+50)/100;if(!BL_HIGH)duty=255-duty;
  if(ledc_set_duty(BL_MODE,BL_CHANNEL,duty)!=ESP_OK||ledc_update_duty(BL_MODE,BL_CHANNEL)!=ESP_OK){pwm=false;ledc_stop(BL_MODE,BL_CHANNEL,BL_HIGH?1:0);}
 }
-void Panel::save(){Preferences p;if(p.begin("nhc-touch",false)){p.putUChar("brightness",brightness);p.putUChar("palette",palette);p.end();}saving=false;}
+void Panel::save(){Preferences p;if(p.begin("nhc-touch",false)){p.putUChar("brightness",brightness);p.putUChar("palette",palette);p.putBool("fx",fx);p.end();}saving=false;}
 void Panel::begin(){
  Serial.println("NHC UI: init");
  tft.init();tft.setRotation(1);tft.setTextFont(2);tft.setTextSize(1);tft.setTextDatum(TL_DATUM);tft.setTextPadding(0);
  Serial.printf("NHC UI: size %d x %d\n",tft.width(),tft.height());
  if(tft.width()!=480||tft.height()!=320){Serial.println("NHC UI: unexpected dimensions");return;}
  Preferences p;bool stored=false;
- if(p.begin("nhc-touch",true)){brightness=constrain(p.getUChar("brightness",30),5,100);palette=p.getUChar("palette",0)%3;stored=p.getBytesLength("cal-v2")==sizeof(cal)&&p.getBytes("cal-v2",cal,sizeof(cal))==sizeof(cal)&&cal[1]>0&&cal[3]>0;p.end();}
+ if(p.begin("nhc-touch",true)){brightness=constrain(p.getUChar("brightness",30),5,100);palette=p.getUChar("palette",0)%3;fx=p.getBool("fx",true);stored=p.getBytesLength("cal-v2")==sizeof(cal)&&p.getBytes("cal-v2",cal,sizeof(cal))==sizeof(cal)&&cal[1]>0&&cal[3]>0;p.end();}
  tft.fillScreen(BLUE);delay(250);
  if(!stored)calibrate();else tft.setTouch(cal);
  Serial.println("NHC UI: renderer begin");
@@ -71,15 +72,19 @@ void Panel::begin(){
  if(digitalRead(0)==HIGH){startLight();light();}else{pwm=false;Serial.println("NHC UI: BOOT held, PWM bypass");}
 }
 void Panel::layout(){
- renderer.invalidate();for(int& v:bars)v=-2;for(int& v:gauges)v=-2;
+ renderer.invalidate();for(int& v:bars)v=-2;for(int& v:gauges)v=-2;for(int& v:barTargets)v=-1;for(int& v:gaugeTargets)v=-1;for(int& w:barW)w=0;phase=0;glitch=false;
  uint16_t a=accents[palette];tft.fillScreen(BG);
  tft.drawFastHLine(12,39,456,a);tft.drawFastHLine(12,269,456,DARK);
+ // Static circuit rails occupy only the reserved gaps between text and navigation.
+ for(int x=18;x<460;x+=22){tft.drawFastHLine(x,43,10,DARK);tft.drawPixel(x+10,44,a);}
+ for(int x=14;x<466;x+=19){tft.drawFastHLine(x,263,8,DARK);}
+ tft.drawFastVLine(8,78,175,DARK);tft.drawFastVLine(471,78,175,DARK);
+ for(int y=80;y<255;y+=24){tft.drawPixel(8,y,a);tft.drawPixel(471,y,a);}
  tft.fillRect(12,10,5,20,a);label(tft,"NEXUS // HARDWARE",24,12,a);
  label(tft,pages[page],16,48,a);label(tft,"SET",410,48,a);
- for(int k=0;k<3;k++){int x=12+k*155;tft.drawRect(x,278,145,30,a);}
- tft.setTextColor(a,BG);tft.drawCentreString("< PREV",84,284,2);tft.drawCentreString("HOME",239,284,2);tft.drawCentreString("NEXT >",394,284,2);
+ for(int k=0;k<3;k++)navButton(k,false);
  if(page==12){
- label(tft,"BACKLIGHT / PWM",20,81,a);tft.drawRect(24,111,432,26,DARK);
+ label(tft,"BACKLIGHT / PWM",20,81,a);tft.drawRect(258,48,132,23,a);tft.setTextColor(a,BG);tft.drawCentreString(fx?"FX ON":"FX OFF",324,51,2);tft.drawRect(24,111,432,26,DARK);
  tft.drawRect(24,154,132,36,a);tft.drawRect(174,154,132,36,a);tft.drawRect(324,154,132,36,a);
  tft.setTextColor(a,BG);tft.drawCentreString("NIGHT 10%",90,164,2);tft.drawCentreString("NORMAL 30%",240,164,2);tft.drawCentreString("MAX 100%",390,164,2);
  tft.drawRect(24,211,202,39,a);tft.drawRect(254,211,202,39,a);tft.drawCentreString("CHANGE COLOR",125,222,2);tft.drawCentreString("CALIBRATE",355,222,2);
@@ -106,16 +111,48 @@ void Panel::field(int id,int x,int y,int w,float value,const char* unit,uint16_t
  renderer.draw(id,x,y,w,32,buf,color,BG,2,true);
 }
 void Panel::gauge(int idx,int x,int y,float value,uint16_t color){
- int n=level(value,30);int old=gauges[idx];if(n==old)return;
+ (void)x;(void)y;(void)color;gaugeTargets[idx]=level(value,30);if(!fx||gauges[idx]<0||gaugeTargets[idx]<0)renderGauge(idx,gaugeTargets[idx]);
+}
+void Panel::renderGauge(int idx,int n){
+ int x=idx?355:125,y=148;int old=gauges[idx];if(n==old)return;
  for(int i=0;i<30;i++){bool on=i<n;bool before=i<old;if(old!=-2&&on==before)continue;
- float r=(139.5f+i*9)*0.0174532925f;tft.drawLine(x+cosf(r)*59,y+sinf(r)*59,x+cosf(r)*66,y+sinf(r)*66,on?color:DARK);}
+ float r=(139.5f+i*9)*0.0174532925f;tft.drawLine(x+cosf(r)*59,y+sinf(r)*59,x+cosf(r)*66,y+sinf(r)*66,on?Effects::spectrum(i*100/29):DARK);}
  gauges[idx]=n;
 }
 void Panel::bar(int idx,int x,int y,int w,float value,uint16_t color){
- int n=level(value,w);int old=bars[idx];if(n==old)return;
+ (void)color;barX[idx]=x;barY[idx]=y;barW[idx]=w;barSpectrum[idx]=page!=12;
+ barTargets[idx]=level(value,w);if(!fx||bars[idx]<0||barTargets[idx]<0)renderBar(idx,barTargets[idx]);
+}
+void Panel::renderBar(int idx,int n){
+ int w=barW[idx];if(w<=0||n==bars[idx])return;int x=barX[idx],y=barY[idx];int old=bars[idx];
  if(old<0){tft.fillRect(x,y,w,8,DARK);old=0;}int v=n<0?0:n;
- if(v>old)tft.fillRect(x+old,y,v-old,8,color);else if(v<old)tft.fillRect(x+v,y,old-v,8,DARK);
+ if(v>old){for(int at=old;at<v;){int boundary=barSpectrum[idx]?((at/8)+1)*8:v;int last=min(v,boundary);uint16_t c=barSpectrum[idx]?Effects::spectrum((at/8)*8*100/w):accents[palette];tft.fillRect(x+at,y,last-at,8,c);at=last;}}
+ else if(v<old)tft.fillRect(x+v,y,old-v,8,DARK);
  bars[idx]=n;
+}
+void Panel::navButton(int id,bool active){
+ if(id<0||id>2)return;
+ int x=12+id*155;uint16_t a=accents[palette];const char* titles[]={"< PREV","HOME","NEXT >"};
+ tft.fillRect(x+1,279,143,28,active?DARK:BG);tft.drawRect(x,278,145,30,a);
+ tft.drawFastHLine(x+4,281,14,a);tft.drawFastHLine(x+125,304,15,a);
+ tft.setTextColor(active?WHITE:a,active?DARK:BG);tft.drawCentreString(titles[id],x+72,284,2);
+}
+void Panel::trigger(int id){if(!fx||id<0)return;glitch=true;glitchAt=millis();glitchButton=id;navButton(id,true);}
+void Panel::animate(const Snapshot& s,uint32_t now){
+ if(s.packets!=packetSeen){packetSeen=s.packets;pulseAt=now;pulse=true;}
+ if(!fx||now-fxAt<65)return;fxAt=now;
+ if(page==0||page==1||page==2||page==5)for(int i=0;i<2;i++)if(gauges[i]!=gaugeTargets[i])renderGauge(i,Effects::ease(gauges[i],gaugeTargets[i]));
+ for(int i=0;i<4;i++)if(barW[i]>0&&bars[i]!=barTargets[i])renderBar(i,Effects::ease(bars[i],barTargets[i]));
+ uint16_t a=accents[palette];
+ // Tiny reserved particle rail; bursts correspond to received USB frames.
+ tft.fillRect(16,272,448,4,BG);
+ if(s.hostFresh&&pulse&&now-pulseAt<800){for(int i=0;i<10;i++){int x=16+((int((now-pulseAt)/3)+i*47)%438);tft.drawFastHLine(x,273,3+(i%3),i%3==0?WHITE:a);}}
+ else pulse=false;
+ if(glitch){uint32_t age=now-glitchAt;if(age>=240){navButton(glitchButton,false);glitch=false;}else{
+ int x=12+155*glitchButton;int offset=(age/65)%3;navButton(glitchButton,true);
+ tft.drawFastHLine(x+5+offset*24,280+offset*7,34,offset==1?RED:WHITE);
+ tft.drawFastHLine(x+99-offset*12,303-offset*4,28,a);
+ }}
 }
 void Panel::metrics(const Snapshot& s){
  uint16_t a=accents[palette];bool fresh=s.hostFresh;auto v=[&](float x){return fresh?x:NAN;};
@@ -149,15 +186,17 @@ void Panel::tick(const Snapshot& s){
  if(!down&&pressed&&!sliderTouch){
    int dx=int(lastX)-touchX,dy=int(lastY)-touchY;
    if(now-touchAt<=1800&&abs(dx)>=75&&abs(dx)>abs(dy)*2&&touchY>=75&&touchY<=265){
-     page=(page+COUNT+(dx<0?1:-1))%COUNT;layout();
+     page=(page+COUNT+(dx<0?1:-1))%COUNT;layout();trigger(dx<0?2:0);
    }else if(!sliding){
      x=touchX;y=touchY;
-     if(y>=44&&y<=72&&x>=390){page=12;layout();}
-     else if(y>=278&&y<=308){if(x<157)page=(page+COUNT-1)%COUNT;else if(x<312)page=0;else page=(page+1)%COUNT;layout();}
+     if(page==12&&y>=48&&y<=71&&x>=258&&x<=389){fx=!fx;saving=true;saveAt=now;layout();}
+     else if(y>=44&&y<=72&&x>=390){page=12;layout();}
+     else if(y>=278&&y<=308){int btn=x<157?0:x<312?1:2;if(btn==0)page=(page+COUNT-1)%COUNT;else if(btn==1)page=0;else page=(page+1)%COUNT;layout();trigger(btn);}
      else if(page==12&&y>=211&&y<=250){if(x<240){palette=(palette+1)%3;saving=true;saveAt=now;layout();}else{calibrate();layout();}}
      else if(page==12&&y>=154&&y<=190){int b=x<166?10:x<314?30:100;if(b!=brightness){brightness=b;light();saving=true;saveAt=now;}}
    }
  }
  pressed=down;if(saving&&!down&&now-saveAt>=800)save();
  if(now-lastDraw>=250){lastDraw=now;metrics(s);}
+ animate(s,now);
 }

@@ -1,0 +1,2 @@
+# Neon FX 0.1.4
+RGB565 spectrum blue/cyan/lime/orange/red independent of palette. Eased differential gauge and bar updates; 65ms tick, 250ms metric refresh. Packet-triggered rail particles; navigation glitch 240ms. Settings FX toggle persisted. No full-screen animations, no new framebuffer. Fan gauge has no invented RPM maximum. Temperature uses current 0–100 C visual scale, not a hardware alarm. Core unchanged. Firmware build and device tests pending.
