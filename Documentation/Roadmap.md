@@ -1,0 +1,11 @@
+# Roadmap
+- 0.0.1 repository and Rust bootstrap
+- 0.0.2 hardware discovery and Linux collectors
+- 0.0.3 USB and protocol tests
+- 0.0.4 Touch diagnostics and graphics engine
+- 0.0.5 Cyberpunk theme
+- 0.0.6 Windows adapter
+- 0.0.7 Bazzite validation
+- 0.1 monitoring stable
+- 0.2 controls
+- 0.3 profiles

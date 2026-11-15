@@ -1,0 +1,16 @@
+{
+  "status": "concept",
+  "width": 480,
+  "height": 320,
+  "widgets": [
+    {
+      "type": "radial_gauge",
+      "source": "cpu.usage_percent",
+      "x": 12,
+      "y": 35,
+      "width": 130,
+      "height": 130,
+      "unit": "%"
+    }
+  ]
+}

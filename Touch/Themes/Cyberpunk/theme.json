@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "id": "cyberpunk",
+  "name": "Cyberpunk",
+  "status": "concept",
+  "palette": {
+    "background": "#080F19",
+    "accent": "#00DDFF",
+    "warning": "#FF3757"
+  },
+  "layout": "Layouts/overview.json"
+}

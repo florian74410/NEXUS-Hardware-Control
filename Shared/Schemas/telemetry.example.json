@@ -1,0 +1,18 @@
+{
+  "type": "telemetry",
+  "version": 1,
+  "session": "demo",
+  "seq": 1,
+  "metrics": {
+    "cpu.usage_percent": {
+      "value": 42,
+      "unit": "%",
+      "quality": "measured"
+    },
+    "cpu.power_w": {
+      "value": null,
+      "unit": "W",
+      "quality": "unsupported"
+    }
+  }
+}

@@ -1,0 +1,7 @@
+target/
+.pio/
+.vscode/
+build/
+*.bin
+*.elf
+.env
