@@ -12,10 +12,10 @@ void label(TFT_eSPI& t,const char* s,int x,int y,uint16_t c){t.setTextColor(c,BG
 }
 void Panel::calibrate() {
   tft.fillScreen(BG);
-  tft.setTextColor(CYAN,BG);
+  tft.setTextColor(accents[palette],BG);
   tft.drawCentreString("NEXUS / TOUCH CALIBRATION",240,140,2);
   tft.drawCentreString("Touch each corner target",240,165,2);
-  tft.calibrateTouch(cal,CYAN,BG,15);
+  tft.calibrateTouch(cal,accents[palette],BG,15);
   tft.setTouch(cal);
   Preferences prefs;
   if(prefs.begin("nhc-touch",false)) {

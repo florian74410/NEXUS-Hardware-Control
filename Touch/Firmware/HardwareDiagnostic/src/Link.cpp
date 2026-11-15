@@ -43,7 +43,7 @@ void Link::handle() {
     host.hostRx=d["network"]["rx_bytes_s"].is<float>() ? d["network"]["rx_bytes_s"].as<float>() : NAN;
     host.hostTx=d["network"]["tx_bytes_s"].is<float>() ? d["network"]["tx_bytes_s"].as<float>() : NAN;
     host.hostBattery=d["battery"]["capacity_percent"].is<float>() ? d["battery"]["capacity_percent"].as<float>() : NAN;
-    host.hostHostUptime=d["system"]["uptime_seconds"].is<float>() ? d["system"]["uptime_seconds"].as<float>() : NAN;
+    host.hostUptime=d["system"]["uptime_seconds"].is<float>() ? d["system"]["uptime_seconds"].as<float>() : NAN;
     host.hostSensorCount=d["thermal"]["count"].is<float>() ? d["thermal"]["count"].as<float>() : NAN;
     host.hostSensorMax=d["thermal"]["max_c"].is<float>() ? d["thermal"]["max_c"].as<float>() : NAN;
     host.hostVoltageCount=d["motherboard"]["voltage_count"].is<float>() ? d["motherboard"]["voltage_count"].as<float>() : NAN;
@@ -54,7 +54,7 @@ void Link::handle() {
   seen=true; last=millis(); ++packets;
   JsonDocument out;
   out["type"]=reply; out["version"]=1; out["nonce"]=nonce;
-  out["device"]="nhc-touch"; out["firmware"]="0.1.0-cyberpunk";
+  out["device"]="nhc-touch"; out["firmware"]="0.1.1-cyberpunk";
   out["telemetry"]=true; out["telemetry_extended"]=true;
   out["cpu_mhz"]=getCpuFrequencyMhz(); out["heap_free"]=ESP.getFreeHeap();
   out["heap_min"]=ESP.getMinFreeHeap(); out["flash_bytes"]=ESP.getFlashChipSize();
@@ -101,7 +101,7 @@ void Link::poll() {
     s.hostRx=host.hostRx;
     s.hostTx=host.hostTx;
     s.hostBattery=host.hostBattery;
-    s.hostHostUptime=host.hostHostUptime;
+    s.hostUptime=host.hostUptime;
     s.hostSensorCount=host.hostSensorCount;
     s.hostSensorMax=host.hostSensorMax;
     s.hostVoltageCount=host.hostVoltageCount;
