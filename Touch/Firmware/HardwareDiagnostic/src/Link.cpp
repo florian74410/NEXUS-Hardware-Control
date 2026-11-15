@@ -21,7 +21,7 @@ void Link::handle() {
   seen=true; last=millis(); ++packets;
   JsonDocument out;
   out["type"]=reply; out["version"]=1; out["nonce"]=nonce;
-  out["device"]="nhc-touch"; out["firmware"]="0.0.3-diagnostic";
+  out["device"]="nhc-touch"; out["firmware"]="0.0.3.1-diagnostic";
   out["cpu_mhz"]=getCpuFrequencyMhz(); out["heap_free"]=ESP.getFreeHeap();
   out["heap_min"]=ESP.getMinFreeHeap(); out["flash_bytes"]=ESP.getFlashChipSize();
   out["psram_bytes"]=ESP.getPsramSize(); out["data_core"]=xPortGetCoreID();

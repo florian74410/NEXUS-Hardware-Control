@@ -5,7 +5,7 @@
 
 QueueHandle_t snapshots;
 static void dataTask(void*) {
-  Link link;
+  static Link link;
   link.begin();
   for (;;) {
     link.poll();
@@ -13,7 +13,8 @@ static void dataTask(void*) {
   }
 }
 static void graphicsTask(void*) {
-  Panel panel;
+  // Zero-initialize library object storage before construction; keep UI ownership here.
+  static Panel panel;
   panel.begin();
   Snapshot s{};
   for (;;) {

@@ -6,6 +6,10 @@ constexpr uint16_t BG=0x0863, CYAN=0x06FF, DARK=0x19A6, WHITE=0xE71C, GREEN=0x27
 }
 void Panel::begin() {
   tft.init(); tft.setRotation(1);
+  tft.setTextFont(2);
+  tft.setTextSize(1);
+  tft.setTextDatum(TL_DATUM);
+  tft.setTextPadding(0);
   if(tft.width()!=480 || tft.height()!=320) return;
   tft.fillScreen(BG);
   Preferences prefs;
@@ -60,7 +64,7 @@ void Panel::metrics(const Snapshot& s) {
       tft.fillRect(x-43,120,86,32,BG);
       if(s.mhz) snprintf(buf,sizeof(buf),"%lu",(unsigned long)s.mhz); else snprintf(buf,sizeof(buf),"--");
       tft.drawCentreString(buf,x,120,4);
-      tft.drawCentreString("MHz / shared clock",x,156,1);
+      tft.drawCentreString("MHz",x,156,2);
     }
     tft.fillRect(16,222,448,47,BG);
     snprintf(buf,sizeof(buf),"HEAP %lu KiB   FLASH %lu MiB",
