@@ -1,2 +1,4 @@
 # Extended telemetry
 Core 0.0.9 / Touch 0.1.0. Same version 1 envelope, negotiated telemetry_extended. Added non_rc6_percent (NOT GPU utilization), disk capacity/wear, thermal count/max, board voltage count. Missing values null. USB retry explicit path every 3s. Theme has overview, module pages, ESP diagnostics and settings. PWM GPIO27 5kHz 8-bit, 30% default, persisted palette and brightness. No cross-platform changes. Build/hardware validation pending.
+
+Root filesystem occupancy from df is distinct from selected physical disk SMART health and wear. Settings shortcut at top right. If service snapshot has null SMART/RAPL after install, log out and log in to refresh systemd user-manager supplementary groups; newgrp only changes the shell. Intel GPU true utilization remains unavailable where kernel/driver does not expose it; non-RC6 is an explicitly labelled proxy.

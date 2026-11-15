@@ -47,6 +47,7 @@ void Link::handle() {
     host.hostSensorCount=d["thermal"]["count"].is<float>() ? d["thermal"]["count"].as<float>() : NAN;
     host.hostSensorMax=d["thermal"]["max_c"].is<float>() ? d["thermal"]["max_c"].as<float>() : NAN;
     host.hostVoltageCount=d["motherboard"]["voltage_count"].is<float>() ? d["motherboard"]["voltage_count"].as<float>() : NAN;
+    host.hostRootUsage=d["storage"]["root_filesystem_usage_percent"].is<float>()?d["storage"]["root_filesystem_usage_percent"].as<float>():NAN;
     host.hostDiskHealth=d["storage"]["healthy"].is<bool>() ? (d["storage"]["healthy"].as<bool>()?1:0) : -1;
     hostSeen=true; hostLast=millis(); reply="telemetry_ack";
   } else return;
@@ -104,6 +105,7 @@ void Link::poll() {
     s.hostSensorCount=host.hostSensorCount;
     s.hostSensorMax=host.hostSensorMax;
     s.hostVoltageCount=host.hostVoltageCount;
+    s.hostRootUsage=host.hostRootUsage;
     s.hostDiskHealth=host.hostDiskHealth;
     s.hostFresh=hostSeen && uint32_t(now-hostLast)<3500;
     xQueueOverwrite(snapshots,&s);

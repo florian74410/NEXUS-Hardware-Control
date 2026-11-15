@@ -13,7 +13,7 @@ pub fn compact(d:&Value,extended:bool)->Value{
  v["power"]=json!({"cpu_package_w":sum(&json!(packages),"power_w"),"system_total_w":d["power"]["system_total_w"]});
  v["gpu"]=json!({"usage_percent":gpu["usage_percent"],"non_rc6_percent":gpu["non_rc6_percent"],"temperature_c":gpu["temperature_c"],"frequency_mhz":gpu["frequency_mhz"],"power_w":gpu["power_w"],"vram_used_mib":gpu["vram_used_mib"],"vram_total_mib":gpu["vram_total_mib"]});
  v["fan"]=json!({"rpm":first(&d["fan"]["sensors"])["value"]});
- v["storage"]=json!({"capacity_bytes":disk["capacity_bytes"],"percentage_used":smart["percentage_used"],"temperature_c":smart["temperature_c"].as_f64().or_else(||disk["temperature_c"].as_f64()),"healthy":smart["healthy"],"read_bytes_s":disk["read_bytes_s"],"write_bytes_s":disk["write_bytes_s"]});
+ v["storage"]=json!({"root_filesystem_usage_percent":d["storage"]["root_filesystem_usage_percent"],"capacity_bytes":disk["capacity_bytes"],"percentage_used":smart["percentage_used"],"temperature_c":smart["temperature_c"].as_f64().or_else(||disk["temperature_c"].as_f64()),"healthy":smart["healthy"],"read_bytes_s":disk["read_bytes_s"],"write_bytes_s":disk["write_bytes_s"]});
  v["network"]=json!({"rx_bytes_s":net["rx_bytes_s"],"tx_bytes_s":net["tx_bytes_s"]});
  v["thermal"]=json!({"count":d["thermal"]["sensors"].as_array().map(|a|a.len()),"max_c":rows(&d["thermal"]["sensors"]).filter_map(|x|x["value"].as_f64()).reduce(f64::max)});
  v["motherboard"]=json!({"voltage_count":d["motherboard"]["voltages"].as_array().map(|a|a.len())});

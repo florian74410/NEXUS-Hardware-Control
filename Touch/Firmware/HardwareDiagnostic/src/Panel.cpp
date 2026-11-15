@@ -39,7 +39,7 @@ void Panel::layout(){
  uint16_t a=accents[palette];tft.fillScreen(BG);
  tft.drawFastHLine(12,39,456,a);tft.drawFastHLine(12,269,456,DARK);
  tft.fillRect(12,10,5,20,a);label(tft,"NEXUS // HARDWARE",24,12,a);
- label(tft,pages[page],16,48,a);
+ label(tft,pages[page],16,48,a);label(tft,"SET",410,48,a);
  for(int k=0;k<3;k++){int x=12+k*155;tft.drawRect(x,278,145,30,a);}
  tft.setTextColor(a,BG);tft.drawCentreString("< PREV",84,284,2);tft.drawCentreString("HOME",239,284,2);tft.drawCentreString("NEXT >",394,284,2);
  if(page==12){
@@ -51,6 +51,18 @@ void Panel::layout(){
  for(int x:{125,355}){tft.drawCircle(x,148,76,DARK);for(int i=0;i<=30;i++){float r=(135+i*9)*0.0174532925f;tft.drawLine(x+cosf(r)*69,148+sinf(r)*69,x+cosf(r)*75,148+sinf(r)*75,DARK);}}
  }else{
  for(int i=0;i<4;i++){int y=84+i*44;tft.drawFastHLine(20,y+32,440,DARK);}
+ const char* names[4]={nullptr,nullptr,nullptr,nullptr};
+ switch(page){
+ case 3:names[0]="RAM USED";names[1]="RAM TOTAL";names[2]="UTILIZATION";break;
+ case 4:names[0]="CPU PACKAGE";names[1]="GPU POWER";names[2]="SYSTEM TOTAL";names[3]="BATTERY";break;
+ case 6:names[0]="SSD TEMP";names[1]="READ / WRITE MiB/s";names[2]="ROOT FS USED";names[3]="SMART";break;
+ case 7:names[0]="DOWNLOAD";names[1]="UPLOAD";break;
+ case 8:names[0]="SENSORS";names[1]="MAX READING";names[2]="CPU";names[3]="GPU";break;
+ case 9:names[0]="VOLTAGE CHANNELS";names[1]="THERMAL CHANNELS";break;
+ case 10:names[0]="HOST UPTIME";names[1]="BATTERY";break;
+ case 11:names[0]="FREE HEAP";names[1]="CLOCK";names[2]="RX PACKETS";names[3]="UPTIME";break;
+ }
+ for(int i=0;i<4;i++)if(names[i])label(tft,names[i],20,84+i*44,WHITE);
  }
 }
 void Panel::field(int id,int x,int y,int w,float value,const char* unit,uint16_t color,int digits){
@@ -72,8 +84,8 @@ void Panel::bar(int idx,int x,int y,int w,float value,uint16_t color){
 void Panel::metrics(const Snapshot& s){
  uint16_t a=accents[palette];bool fresh=s.hostFresh;auto v=[&](float x){return fresh?x:NAN;};
  renderer.draw(0,326,12,140,20,fresh?"LINK ONLINE":"HOST OFFLINE",fresh?GREEN:RED,BG,2,true);
- auto row=[&](int i,const char* name,float value,const char* unit,int digits=1){int y=84+i*44;label(tft,name,20,y,WHITE);field(i+1,242,y,214,value,unit,a,digits);};
- auto dial=[&](int i,const char* name,float val,const char* unit,float fill){int x=i?355:125;gauge(i,x,148,fill,a);char b[40];if(isfinite(val))snprintf(b,sizeof(b),"%.1f %s",val,unit);else strcpy(b,"N/A");renderer.draw(i+1,x-54,134,108,32,b,WHITE,BG,4);tft.setTextColor(a,BG);tft.drawCentreString(name,x,177,2);};
+ auto row=[&](int i,const char* name,float value,const char* unit,int digits=1){int y=84+i*44;(void)name;field(i+1,242,y,214,value,unit,a,digits);};
+ auto dial=[&](int i,const char* name,float val,const char* unit,float fill){int x=i?355:125;gauge(i,x,148,fill,a);char b[40];if(isfinite(val))snprintf(b,sizeof(b),"%.1f %s",val,unit);else strcpy(b,"N/A");renderer.draw(i+1,x-54,134,108,32,b,WHITE,BG,4);renderer.draw(5+i,x-55,177,110,20,name,a,BG,2);};
  switch(page){
  case 0:dial(0,"CPU LOAD",v(s.hostCpu),"%",v(s.hostCpu));dial(1,"RAM",v(percent(s.hostRamUsed,s.hostRamTotal)),"%",v(percent(s.hostRamUsed,s.hostRamTotal)));field(3,20,235,205,v(s.hostTemp),"C",a);field(4,245,235,205,v(s.hostCpuPower),"W CPU",a);break;
  case 1:dial(0,"CPU LOAD",v(s.hostCpu),"%",v(s.hostCpu));dial(1,"CPU TEMP",v(s.hostTemp),"C",v(s.hostTemp));field(3,20,235,205,v(s.hostMhz),"MHz",a,0);field(4,245,235,205,v(s.hostCpuPower),"W",a);break;
@@ -81,7 +93,7 @@ void Panel::metrics(const Snapshot& s){
  case 3:row(0,"RAM USED",v(s.hostRamUsed),"MiB",0);row(1,"RAM TOTAL",v(s.hostRamTotal),"MiB",0);row(2,"UTILIZATION",v(percent(s.hostRamUsed,s.hostRamTotal)),"%");bar(0,20,242,436,v(percent(s.hostRamUsed,s.hostRamTotal)),a);break;
  case 4:row(0,"CPU PACKAGE",v(s.hostCpuPower),"W");row(1,"GPU POWER",v(s.hostGpuPower),"W");row(2,"SYSTEM TOTAL",v(s.hostSystemPower),"W");row(3,"BATTERY",v(s.hostBattery),"%");break;
  case 5:dial(0,"FAN RPM",v(s.hostFan),"",NAN);dial(1,"CPU TEMP",v(s.hostTemp),"C",v(s.hostTemp));break;
- case 6:row(0,"SSD TEMP",v(s.hostDiskTemp),"C");row(1,"READ",v(s.hostDiskRead/1048576),"MiB/s");row(2,"WRITE",v(s.hostDiskWrite/1048576),"MiB/s");label(tft,"SMART / WEAR",20,216,WHITE);renderer.draw(8,252,216,196,20,!fresh||s.hostDiskHealth<0?"N/A":s.hostDiskHealth?"PASSED":"FAILED",s.hostDiskHealth==1?GREEN:RED,BG,2,true);bar(0,20,247,436,v(s.hostDiskWear),a);break;
+ case 6:{row(0,"SSD TEMP",v(s.hostDiskTemp),"C");char io[48];if(fresh&&isfinite(s.hostDiskRead)&&isfinite(s.hostDiskWrite))snprintf(io,sizeof(io),"%.2f / %.2f",s.hostDiskRead/1048576,s.hostDiskWrite/1048576);else strcpy(io,"N/A");renderer.draw(2,252,128,196,20,io,a,BG,2,true);row(2,"ROOT FS USED",v(s.hostRootUsage),"%");renderer.draw(8,252,216,196,20,!fresh||s.hostDiskHealth<0?"N/A":s.hostDiskHealth?"PASSED":"FAILED",fresh&&s.hostDiskHealth==1?GREEN:RED,BG,2,true);bar(0,20,247,436,v(s.hostRootUsage),a);break;}
  case 7:row(0,"DOWNLOAD",v(s.hostRx/1024),"KiB/s");row(1,"UPLOAD",v(s.hostTx/1024),"KiB/s");break;
  case 8:row(0,"SENSORS",v(s.hostSensorCount),"",0);row(1,"MAX READING",v(s.hostSensorMax),"C");row(2,"CPU",v(s.hostTemp),"C");row(3,"GPU",v(s.hostGpuTemp),"C");break;
  case 9:row(0,"VOLTAGE CHANNELS",v(s.hostVoltageCount),"",0);row(1,"THERMAL CHANNELS",v(s.hostSensorCount),"",0);break;
@@ -93,7 +105,8 @@ void Panel::metrics(const Snapshot& s){
 void Panel::tick(const Snapshot& s){
  if(!ready)return;uint16_t x=0,y=0;bool down=tft.getTouch(&x,&y);
  if(down&&!pressed){
- if(y>=278&&y<=308){if(x<157)page=(page+COUNT-1)%COUNT;else if(x<312)page=0;else page=(page+1)%COUNT;layout();}
+ if(y>=44&&y<=72&&x>=390){page=12;layout();}
+ else if(y>=278&&y<=308){if(x<157)page=(page+COUNT-1)%COUNT;else if(x<312)page=0;else page=(page+1)%COUNT;layout();}
  else if(page==12&&y>=211&&y<=250){if(x<240){palette=(palette+1)%3;saving=true;saveAt=millis();layout();}else{while(tft.getTouch(&x,&y))delay(20);calibrate();layout();}}
  }
  if(down&&page==12){int b=-1;if(y>=108&&y<=140&&x>=24&&x<=456)b=constrain(5+(int(x)-24)*95/432,5,100);else if(!pressed&&y>=154&&y<=190)b=x<166?10:x<314?30:100;if(b>=0&&b!=brightness){brightness=b;light();saving=true;saveAt=millis();}}
