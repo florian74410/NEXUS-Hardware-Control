@@ -12,3 +12,6 @@ fn main() -> std::process::ExitCode {
 mod modules;
 
 mod deployment;
+
+mod service;
+mod projection;

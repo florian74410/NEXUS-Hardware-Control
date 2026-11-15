@@ -1,0 +1,9 @@
+[Unit]
+Description=NHC user hardware collection engine
+[Service]
+ExecStart=%h/.local/bin/nhc service run
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=yes
+[Install]
+WantedBy=default.target

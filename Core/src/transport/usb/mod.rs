@@ -120,10 +120,9 @@ pub fn stream(path:&str)->Result<(),String>{
     let mut seq=0u64;
     loop {
         seq+=1;
-        let data=collector.sample();
+        let data=crate::service::read().unwrap_or_else(||collector.sample());
         let ack_nonce=format!("{nonce}-{seq}");
-        // Touch 0.0.5 only consumes these five fields. Keep frames bounded regardless of host device count.
-        let compact=json!({"cpu":{"usage_percent":data["cpu"]["usage_percent"],"frequency_mhz":data["cpu"]["frequency_mhz"],"temperature_c":data["cpu"]["temperature_c"]},"ram":{"used_mib":data["ram"]["used_mib"],"total_mib":data["ram"]["total_mib"]}});
+        let compact=crate::projection::compact(&data,hello["telemetry_extended"].as_bool()==Some(true));
         let req=json!({"type":"telemetry","version":1,"nonce":ack_nonce,"session":nonce,"seq":seq,"data":compact});
         exchange(&mut *port,req,"telemetry_ack",&ack_nonce)?;
         println!("{}",serde_json::to_string(&data).map_err(|e|e.to_string())?);

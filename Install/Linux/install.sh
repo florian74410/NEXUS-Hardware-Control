@@ -42,6 +42,13 @@ else
 fi
 install -Dm755 target/release/nhc "$HOME/.local/bin/nhc"
 echo "[OK] NHC installed: $HOME/.local/bin/nhc"
+if systemctl --user show-environment >/dev/null 2>&1; then
+  install -Dm644 "$ROOT/Install/Linux/nhc-core.service" "$HOME/.config/systemd/user/nhc-core.service"
+  systemctl --user daemon-reload
+  systemctl --user enable --now nhc-core.service
+  systemctl --user restart nhc-core.service
+  echo "[OK] NHC user collector enabled"
+fi
 "$HOME/.local/bin/nhc" --version
 "$HOME/.local/bin/nhc" doctor
 echo "Add $HOME/.local/bin to PATH if needed. USB access may require distro-specific serial group and a new login."
