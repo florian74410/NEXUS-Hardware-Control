@@ -1,6 +1,7 @@
 #include "Panel.h"
 #include <Preferences.h>
 #include <cmath>
+#include <driver/ledc.h>
 namespace {
 constexpr uint16_t BG=0x0863, PANEL=0x10A5, DARK=0x2188, WHITE=0xE71C, GREEN=0x27EB, RED=0xF92B, BLUE=0x06FF, AMBER=0xFD20;
 uint16_t accents[]={BLUE,RED,0x37E8};
@@ -23,7 +24,36 @@ void Panel::calibrate() {
   }
 }
 
-void Panel::light(){if(pwm)ledcWrite(27,(brightness*255+50)/100);}
+namespace {
+#ifdef TFT_BL
+constexpr int BL_PIN=TFT_BL;
+#else
+constexpr int BL_PIN=27;
+#endif
+#ifdef TFT_BACKLIGHT_ON
+constexpr bool BL_HIGH=(TFT_BACKLIGHT_ON==HIGH);
+#else
+constexpr bool BL_HIGH=true;
+#endif
+constexpr ledc_mode_t BL_MODE=LEDC_HIGH_SPEED_MODE;
+constexpr ledc_timer_t BL_TIMER=LEDC_TIMER_3;
+constexpr ledc_channel_t BL_CHANNEL=LEDC_CHANNEL_7;
+}
+void Panel::startLight(){
+ // Use the IDF peripheral directly: leave TFT_eSPI GPIO ownership untouched by Arduino's pin manager.
+ ledc_timer_config_t timer{};
+ timer.speed_mode=BL_MODE;timer.duty_resolution=LEDC_TIMER_8_BIT;timer.timer_num=BL_TIMER;timer.freq_hz=5000;timer.clk_cfg=LEDC_AUTO_CLK;
+ ledc_channel_config_t channel{};
+ channel.gpio_num=BL_PIN;channel.speed_mode=BL_MODE;channel.channel=BL_CHANNEL;channel.intr_type=LEDC_INTR_DISABLE;channel.timer_sel=BL_TIMER;channel.duty=BL_HIGH?255:0;channel.hpoint=0;
+ pwm=ledc_timer_config(&timer)==ESP_OK&&ledc_channel_config(&channel)==ESP_OK;
+ if(!pwm){pinMode(BL_PIN,OUTPUT);digitalWrite(BL_PIN,BL_HIGH?HIGH:LOW);}
+ Serial.printf("NHC UI: backlight pin=%d active=%s PWM=%s\n",BL_PIN,BL_HIGH?"HIGH":"LOW",pwm?"OK":"fallback");
+}
+void Panel::light(){
+ if(!pwm)return;
+ unsigned duty=(brightness*255+50)/100;if(!BL_HIGH)duty=255-duty;
+ if(ledc_set_duty(BL_MODE,BL_CHANNEL,duty)!=ESP_OK||ledc_update_duty(BL_MODE,BL_CHANNEL)!=ESP_OK){pwm=false;ledc_stop(BL_MODE,BL_CHANNEL,BL_HIGH?1:0);}
+}
 void Panel::save(){Preferences p;if(p.begin("nhc-touch",false)){p.putUChar("brightness",brightness);p.putUChar("palette",palette);p.end();}saving=false;}
 void Panel::begin(){
  Serial.println("NHC UI: init");
@@ -32,14 +62,13 @@ void Panel::begin(){
  if(tft.width()!=480||tft.height()!=320){Serial.println("NHC UI: unexpected dimensions");return;}
  Preferences p;bool stored=false;
  if(p.begin("nhc-touch",true)){brightness=constrain(p.getUChar("brightness",30),5,100);palette=p.getUChar("palette",0)%3;stored=p.getBytesLength("cal-v2")==sizeof(cal)&&p.getBytes("cal-v2",cal,sizeof(cal))==sizeof(cal)&&cal[1]>0&&cal[3]>0;p.end();}
- // Recovery build: restore TFT_eSPI backlight/SPI ownership, no LEDC attach.
- pwm=false;
- Serial.println("NHC UI: PWM bypass; TFT_eSPI backlight");
  tft.fillScreen(BLUE);delay(250);
  if(!stored)calibrate();else tft.setTouch(cal);
  Serial.println("NHC UI: renderer begin");
  renderer.begin();ready=true;layout();
  Serial.println("NHC UI: ready");
+ pinMode(0,INPUT_PULLUP);
+ if(digitalRead(0)==HIGH){startLight();light();}else{pwm=false;Serial.println("NHC UI: BOOT held, PWM bypass");}
 }
 void Panel::layout(){
  renderer.invalidate();for(int& v:bars)v=-2;for(int& v:gauges)v=-2;
@@ -106,17 +135,29 @@ void Panel::metrics(const Snapshot& s){
  case 9:row(0,"VOLTAGE CHANNELS",v(s.hostVoltageCount),"",0);row(1,"THERMAL CHANNELS",v(s.hostSensorCount),"",0);break;
  case 10:row(0,"HOST UPTIME",v(s.hostUptime/3600),"h");row(1,"BATTERY",v(s.hostBattery),"%");break;
  case 11:row(0,"FREE HEAP",s.heap/1024.0f,"KiB");row(1,"CLOCK",s.mhz,"MHz",0);row(2,"RX PACKETS",s.packets,"",0);row(3,"UPTIME",s.uptime,"s",0);break;
- case 12:field(1,270,79,180,brightness,"%",a,0);bar(0,27,120,426,brightness,a);if(!pwm)label(tft,"PWM bypass / recovery",20,250,RED);break;
+ case 12:field(1,270,79,180,brightness,"%",a,0);bar(0,27,120,426,brightness,a);if(!pwm)label(tft,"PWM unavailable",20,250,RED);break;
  }
 }
 void Panel::tick(const Snapshot& s){
- if(!ready)return;uint16_t x=0,y=0;bool down=tft.getTouch(&x,&y);
- if(down&&!pressed){
- if(y>=44&&y<=72&&x>=390){page=12;layout();}
- else if(y>=278&&y<=308){if(x<157)page=(page+COUNT-1)%COUNT;else if(x<312)page=0;else page=(page+1)%COUNT;layout();}
- else if(page==12&&y>=211&&y<=250){if(x<240){palette=(palette+1)%3;saving=true;saveAt=millis();layout();}else{while(tft.getTouch(&x,&y))delay(20);calibrate();layout();}}
+ if(!ready)return;
+ uint16_t x=0,y=0;bool down=tft.getTouch(&x,&y);uint32_t now=millis();
+ if(down&&!pressed){touchX=lastX=x;touchY=lastY=y;touchAt=now;sliding=false;sliderTouch=page==12&&y>=108&&y<=140&&x>=24&&x<=456;}
+ if(down){lastX=x;lastY=y;int dx=int(x)-touchX,dy=int(y)-touchY;
+  if(abs(dx)>24||abs(dy)>24)sliding=true;
+  if(sliderTouch){int b=constrain(5+(int(x)-24)*95/432,5,100);if(b!=brightness){brightness=b;light();saving=true;saveAt=now;}}
  }
- if(down&&page==12){int b=-1;if(y>=108&&y<=140&&x>=24&&x<=456)b=constrain(5+(int(x)-24)*95/432,5,100);else if(!pressed&&y>=154&&y<=190)b=x<166?10:x<314?30:100;if(b>=0&&b!=brightness){brightness=b;light();saving=true;saveAt=millis();}}
- pressed=down;if(saving&&!down&&millis()-saveAt>=800)save();
- if(millis()-lastDraw>=250){lastDraw=millis();metrics(s);}
+ if(!down&&pressed&&!sliderTouch){
+   int dx=int(lastX)-touchX,dy=int(lastY)-touchY;
+   if(now-touchAt<=1800&&abs(dx)>=75&&abs(dx)>abs(dy)*2&&touchY>=75&&touchY<=265){
+     page=(page+COUNT+(dx<0?1:-1))%COUNT;layout();
+   }else if(!sliding){
+     x=touchX;y=touchY;
+     if(y>=44&&y<=72&&x>=390){page=12;layout();}
+     else if(y>=278&&y<=308){if(x<157)page=(page+COUNT-1)%COUNT;else if(x<312)page=0;else page=(page+1)%COUNT;layout();}
+     else if(page==12&&y>=211&&y<=250){if(x<240){palette=(palette+1)%3;saving=true;saveAt=now;layout();}else{calibrate();layout();}}
+     else if(page==12&&y>=154&&y<=190){int b=x<166?10:x<314?30:100;if(b!=brightness){brightness=b;light();saving=true;saveAt=now;}}
+   }
+ }
+ pressed=down;if(saving&&!down&&now-saveAt>=800)save();
+ if(now-lastDraw>=250){lastDraw=now;metrics(s);}
 }
