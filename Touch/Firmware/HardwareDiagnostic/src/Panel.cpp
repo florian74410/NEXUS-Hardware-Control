@@ -26,13 +26,20 @@ void Panel::calibrate() {
 void Panel::light(){if(pwm)ledcWrite(27,(brightness*255+50)/100);}
 void Panel::save(){Preferences p;if(p.begin("nhc-touch",false)){p.putUChar("brightness",brightness);p.putUChar("palette",palette);p.end();}saving=false;}
 void Panel::begin(){
+ Serial.println("NHC UI: init");
  tft.init();tft.setRotation(1);tft.setTextFont(2);tft.setTextSize(1);tft.setTextDatum(TL_DATUM);tft.setTextPadding(0);
- if(tft.width()!=480||tft.height()!=320)return;
+ Serial.printf("NHC UI: size %d x %d\n",tft.width(),tft.height());
+ if(tft.width()!=480||tft.height()!=320){Serial.println("NHC UI: unexpected dimensions");return;}
  Preferences p;bool stored=false;
  if(p.begin("nhc-touch",true)){brightness=constrain(p.getUChar("brightness",30),5,100);palette=p.getUChar("palette",0)%3;stored=p.getBytesLength("cal-v2")==sizeof(cal)&&p.getBytes("cal-v2",cal,sizeof(cal))==sizeof(cal)&&cal[1]>0&&cal[3]>0;p.end();}
- pwm=ledcAttach(27,5000,8);light();
+ // Recovery build: restore TFT_eSPI backlight/SPI ownership, no LEDC attach.
+ pwm=false;
+ Serial.println("NHC UI: PWM bypass; TFT_eSPI backlight");
+ tft.fillScreen(BLUE);delay(250);
  if(!stored)calibrate();else tft.setTouch(cal);
+ Serial.println("NHC UI: renderer begin");
  renderer.begin();ready=true;layout();
+ Serial.println("NHC UI: ready");
 }
 void Panel::layout(){
  renderer.invalidate();for(int& v:bars)v=-2;for(int& v:gauges)v=-2;
@@ -99,7 +106,7 @@ void Panel::metrics(const Snapshot& s){
  case 9:row(0,"VOLTAGE CHANNELS",v(s.hostVoltageCount),"",0);row(1,"THERMAL CHANNELS",v(s.hostSensorCount),"",0);break;
  case 10:row(0,"HOST UPTIME",v(s.hostUptime/3600),"h");row(1,"BATTERY",v(s.hostBattery),"%");break;
  case 11:row(0,"FREE HEAP",s.heap/1024.0f,"KiB");row(1,"CLOCK",s.mhz,"MHz",0);row(2,"RX PACKETS",s.packets,"",0);row(3,"UPTIME",s.uptime,"s",0);break;
- case 12:field(1,270,79,180,brightness,"%",a,0);bar(0,27,120,426,brightness,a);if(!pwm)label(tft,"PWM unavailable",20,250,RED);break;
+ case 12:field(1,270,79,180,brightness,"%",a,0);bar(0,27,120,426,brightness,a);if(!pwm)label(tft,"PWM bypass / recovery",20,250,RED);break;
  }
 }
 void Panel::tick(const Snapshot& s){
